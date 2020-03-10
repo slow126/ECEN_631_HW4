@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 import os
 
-PATH = "pitch_img/"
+PATH = "one_pitch/"
 
 
 prev_img = np.zeros((480, 640, 3))
-base_imgL = cv2.imread(os.path.join(PATH, 'left/L_00001.jpeg'))
+base_imgL = cv2.imread(os.path.join(PATH, 'left/L_00450.jpeg'))
 left_list = os.listdir(os.path.join(PATH, 'left'))
 left_list.sort()
-base_imgR = cv2.imread(os.path.join(PATH, 'right/R_00001.jpeg'))
+base_imgR = cv2.imread(os.path.join(PATH, 'right/R_00450.jpeg'))
 right_list = os.listdir(os.path.join(PATH, 'right'))
 right_list.sort()
 

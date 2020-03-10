@@ -61,8 +61,11 @@ left_obj_corners = [left_obj[0][0], left_obj[0][9], left_obj[0][-1], left_obj[0]
 right_img_corners = [right_sub[0], right_sub[9], right_sub[-1], right_sub[-10]]
 right_obj_corners = [right_obj[0][0], right_obj[0][9], right_obj[0][-1], right_obj[0][-10]]
 
-left_rect = cv2.undistortPoints(np.array(left_img_corners), left_mtx, left_dist, np.array(left_obj_corners), R1, P1)
-right_rect = cv2.undistortPoints(np.array(right_img_corners), right_mtx, right_dist, np.array(right_obj_corners), R2, P2)
+left_rect = cv2.undistortPoints(src=np.array(left_img_corners), cameraMatrix=left_mtx, distCoeffs=left_dist, R=R1, P=P1)
+right_rect = cv2.undistortPoints(src=np.array(right_img_corners), cameraMatrix=right_mtx, distCoeffs=right_dist, R=R2, P=P2)
+
+# left_rect = cv2.undistortPoints(np.array(left_img_corners), left_mtx, left_dist, np.array(left_obj_corners), R1, P1)
+# right_rect = cv2.undistortPoints(np.array(right_img_corners), right_mtx, right_dist, np.array(right_obj_corners), R2, P2)
 
 t_left = np.squeeze(left_rect)
 t2 = [[0],[0],[0],[0]]
