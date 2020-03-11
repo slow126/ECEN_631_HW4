@@ -23,12 +23,12 @@ right_dist = np.load("right-dist.npy")
 PATH = "one_pitch/"
 
 prev_img = np.zeros((480, 640, 3))
-base_imgL = cv2.imread(os.path.join(PATH, 'left/L_00450.jpeg'))
 left_list = os.listdir(os.path.join(PATH, 'left'))
 left_list.sort()
-base_imgR = cv2.imread(os.path.join(PATH, 'right/R_00450.jpeg'))
+base_imgL = cv2.imread(os.path.join(PATH, 'left', left_list[0]))
 right_list = os.listdir(os.path.join(PATH, 'right'))
 right_list.sort()
+base_imgR = cv2.imread(os.path.join(PATH, 'right', right_list[0]))
 
 params = cv2.SimpleBlobDetector_Params()
 # Change thresholds
@@ -41,7 +41,7 @@ params.minArea = 175
 
 # Filter by Circularity
 params.filterByCircularity = True
-params.minCircularity = 0.5
+params.minCircularity = 0.7
 
 # Filter by Convexity
 params.filterByConvexity = True
@@ -49,13 +49,14 @@ params.minConvexity = 0.1
 
 # Filter by Inertia
 params.filterByInertia = True
-params.minInertiaRatio = 0.1
+params.minInertiaRatio = 0.35
 detector = cv2.SimpleBlobDetector_create(params)
 
 prev_imgL = base_imgL
 prev_imgR = base_imgR
 
-my_kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
+my_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+my_sml_krnl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
 y = 640
 x = 480
@@ -67,9 +68,18 @@ xR = []
 yR = []
 zR = []
 
+
+def extrapolate(x, y, z, at_z):
+    fitx = np.polyfit(z, x, 2)
+    future_x = (at_z**2) * fitx[0] + at_z * fitx[1] + fitx[2]
+    fity = np.polyfit(z, y, 2)
+    future_y = (at_z**2) * fity[0] + at_z * fity[1] + fity[2]
+    return future_x, future_y, fitx, fity
+
+
 def to3D(left_key, right_key):
     left_rect = cv2.undistortPoints(src=np.array([[(left_key[0], left_key[1])]]), cameraMatrix=left_mtx, distCoeffs=left_dist, R=R1, P=P1)
-    right_rect = cv2.undistortPoints(src=np.array([[np.transpose(right_key)]]), cameraMatrix=right_mtx, distCoeffs=right_dist, R=R2, P=P2)
+    right_rect = cv2.undistortPoints(src=np.array([[(right_key[0], right_key[1])]]), cameraMatrix=right_mtx, distCoeffs=right_dist, R=R2, P=P2)
 
     t2 = [[0]]
     diff = np.squeeze(left_rect - right_rect)
@@ -96,21 +106,20 @@ for i in range(len(left_list)):
     diffL = cv2.absdiff(prev_imgL, imgL)
     diffR = cv2.absdiff(prev_imgR, imgR)
 
-    diffL[diffL < 10] = 0
-    diffL[diffL >= 10] = 150
-    diffR[diffR < 10] = 0
-    diffR[diffR >= 10] = 150
+    diffL[diffL < 8] = 0
+    diffL[diffL >= 8] = 150
+    diffR[diffR < 8] = 0
+    diffR[diffR >= 8] = 150
 
-    diffL = ~diffL
-    diffR = ~diffR
     # cv2.imshow("output", diff)
     # cv2.waitKey(0)
     diffL = cv2.medianBlur(diffL, 5)
     diffR = cv2.medianBlur(diffR, 5)
-    diffL = cv2.erode(cv2.dilate(diffL, my_kernel), my_kernel)
-    diffR = cv2.erode(cv2.dilate(diffR, my_kernel), my_kernel)
+    diffL = cv2.erode(cv2.erode(cv2.dilate(diffL, my_kernel), my_kernel), my_sml_krnl)
+    diffR = cv2.erode(cv2.erode(cv2.dilate(diffR, my_kernel), my_kernel), my_sml_krnl)
 
-
+    diffL = ~diffL
+    diffR = ~diffR
 
     keypoints = detector.detect(diffL)
     left_key = keypoints
@@ -133,31 +142,91 @@ for i in range(len(left_list)):
     # prev_imgL = imgL
     # prev_imgR = imgR
 
-    cv2.imshow("outputL", im_with_keypointsL)
-    cv2.imshow("outputR", im_with_keypointsR)
-    cv2.waitKey(1)
+    # cv2.imshow("outputL", im_with_keypointsL)
+    # cv2.imshow("outputR", im_with_keypointsR)
+    # # cv2.imwrite("ball_location/left/L_" + str(i).zfill(3) + ".jpg", im_with_keypointsL)
+    # # cv2.imwrite("ball_location/right/R_" + str(i).zfill(3) + ".jpg", im_with_keypointsR)
+    # cv2.waitKey(1)
 
 ax = plt.axes(projection='3d')
 
+left_translation = [-11.5, -29.5, -21.5]
+right_translation = [11.5, -29.5, -21.5]
+xL = -1 * (np.array(xL) - 11.5)
+yL = -1 * (np.array(yL) - 29.5)
+zL = -1 * (np.array(zL) - 21.5)
+xR = -1 * (np.array(xR) + 11.5)
+yR = -1 * (np.array(yR) - 29.5)
+zR = -1 * (np.array(zR) - 21.5)
 
-ax.plot3D(xL, yL, zL, 'red')
+guess_x, guess_y, fitx, fity = extrapolate(xL, yL, zL, 0)
+
+ax.plot3D(zL, xL, yL, 'red')
+ax.set_xlabel("Z distance")
+ax.set_ylabel("X distance")
+ax.set_zlabel("Y distance")
 plt.show()
+
 plt.plot(xL, yL)
+plt.title("Left Camera x v y")
+plt.gca().set_aspect('equal')
 plt.show()
-plt.plot(zL, yL)
+
+plt.scatter(zL, yL)
+t_zL = np.concatenate((zL, (0,0)))
+plt.plot(t_zL, (t_zL**2)*fity[0] + t_zL * fity[1] + fity[2], 'r')
+plt.title("Left Camera z v y")
+plt.gca().set_aspect('equal')
+yticks = np.arange(20, 65, 10)
+plt.yticks(yticks)
 plt.show()
-plt.plot(zL, xL)
+plt.savefig("Left_Camera_z_v_y.png")
+
+plt.scatter(zL, xL)
+plt.plot(t_zL, (t_zL**2)*fitx[0] + t_zL * fitx[1] + fitx[2], 'r')
+plt.title("Left Camera z v x")
+plt.gca().set_aspect('equal')
+yticks = np.arange(5, 45, 10)
+plt.yticks(yticks)
 plt.show()
+plt.savefig("Left_Camera_z_v_x.png")
 
 sio.savemat("xL.mat", {'xL':xL})
 sio.savemat("yL.mat", {'yL':yL})
 sio.savemat("zL.mat", {'zL':zL})
 
-# ax.plot3D(xR, yR, zR, 'red')
-# plt.show()
-# plt.plot(xR, yR)
-# plt.show()
-# plt.plot(zR, yR)
-# plt.show()
-# plt.plot(zR, xR)
-# plt.show()
+ax.plot3D(xR, yR, zR, 'red')
+plt.show()
+plt.plot(xR, yR)
+plt.gca().set_aspect('equal')
+plt.title("Right Camera x v y")
+plt.show()
+
+guess_x, guess_y, fitx, fity = extrapolate(xR, yR, zR, 0)
+
+plt.scatter(zR, yR)
+plt.plot(zR, (zR**2) * fity[0] + zR * fity[1] + fity[2])
+t_zR = np.concatenate((zR, (0,0)))
+plt.plot(t_zR, (t_zR**2) * fity[0] + t_zR * fity[1] + fity[2], 'r')
+plt.gca().set_aspect('equal')
+plt.title("Right Camera z v y")
+yticks = np.arange(0, 65, 10)
+plt.yticks(yticks)
+plt.show()
+plt.savefig("Right_Camera_z_v_y.png")
+
+
+plt.scatter(zR, xR)
+plt.plot(t_zR, (t_zR**2) * fitx[0] + t_zR * fitx[1] + fitx[2], 'r')
+plt.gca().set_aspect('equal')
+plt.title("Right Camera z v x")
+yticks = np.arange(0, 45, 10)
+plt.yticks(yticks)
+plt.show()
+plt.savefig("Right_Camera_z_v_x.png")
+
+
+
+
+t = 1
+

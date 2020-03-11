@@ -5,6 +5,12 @@ import os
 PATH = "calibration_img"
 files = os.listdir(PATH)
 
+
+def draw_circles(keypoints, img):
+    for point in keypoints:
+        cv2.circle(img, (point[0,0], point[0,1]), 3, (255,255,0), thickness=2)
+    return img
+
 def find_corners(in_img, pattern=(10, 7)):
     color_img = in_img
     in_img = cv2.cvtColor(in_img, cv2.COLOR_RGB2GRAY)
@@ -29,7 +35,7 @@ def find_corners(in_img, pattern=(10, 7)):
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
         sub_corners = cv2.cornerSubPix(in_img, np.float32(corners), (5, 5), (-1, -1), criteria)
         imgpoints.append(np.squeeze(sub_corners))
-        annotated_gray = cv2.drawChessboardCorners(color_img, pattern, sub_corners, ret)
+        # annotated_gray = cv2.drawChessboardCorners(color_img, pattern, sub_corners, ret)
 
     # cv2.imshow("img", annotated_gray)
     # cv2.waitKey()
@@ -60,6 +66,16 @@ left_img_corners = [left_sub[0], left_sub[9], left_sub[-1], left_sub[-10]]
 left_obj_corners = [left_obj[0][0], left_obj[0][9], left_obj[0][-1], left_obj[0][-10]]
 right_img_corners = [right_sub[0], right_sub[9], right_sub[-1], right_sub[-10]]
 right_obj_corners = [right_obj[0][0], right_obj[0][9], right_obj[0][-1], right_obj[0][-10]]
+
+
+left = draw_circles(left_img_corners, left)
+right = draw_circles(right_img_corners, right)
+
+cv2.imshow("left", left)
+cv2.imshow("right", right)
+cv2.imwrite("left_chess.jpg", left)
+cv2.imwrite("right_ches.jpg", right)
+cv2.waitKey()
 
 left_rect = cv2.undistortPoints(src=np.array(left_img_corners), cameraMatrix=left_mtx, distCoeffs=left_dist, R=R1, P=P1)
 right_rect = cv2.undistortPoints(src=np.array(right_img_corners), cameraMatrix=right_mtx, distCoeffs=right_dist, R=R2, P=P2)
